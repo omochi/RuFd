@@ -60,7 +60,7 @@ public class FileDescriptor : Equatable, Hashable {
         if ret == -1 {
             throw PosixError(code: errno)
         }
-        return chunk
+        return Array(chunk[0..<ret])
     }
 
     public func write(data: [UInt8]) throws {
