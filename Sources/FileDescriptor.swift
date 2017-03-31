@@ -41,24 +41,53 @@ public class FileDescriptor : Equatable, Hashable {
         closed = true
     }
 
-    public func read(buffer: UnsafeMutableRawPointer, size: Int) throws -> Int {
-        let ret = Darwin.read(fd, buffer, size)
-        if ret == -1 { throw PosixError(code: errno) }
-        return ret
+    public func read() throws -> [UInt8] {
+        var data = [UInt8]()
+        let chunkSize = 1024 * 8
+        while true {
+            let chunk = try read(size: chunkSize)
+            data.append(contentsOf: chunk)
+            if chunk.count < chunkSize {
+                break
+            }
+        }
+        return data
     }
 
-    public func write(buffer: UnsafeRawPointer, size: Int) throws -> Int {
-        let ret = Darwin.write(fd, buffer, size)
-        if ret == -1 { throw PosixError(code: errno) }
-        return ret
+    public func read(size: Int) throws -> [UInt8] {
+        var chunk = Array<UInt8>(repeating: 0, count: size)
+        let ret = Darwin.read(fd, &chunk, chunk.count)
+        if ret == -1 {
+            throw PosixError(code: errno)
+        }
+        return chunk
     }
 
-    public static let stdin: FileDescriptor =
-        FileDescriptor(fd: STDIN_FILENO, closeOnDeinit: false)
-    public static let stdout: FileDescriptor =
-        FileDescriptor(fd: STDOUT_FILENO, closeOnDeinit: false)
-    public static let stderr: FileDescriptor =
-        FileDescriptor(fd: STDERR_FILENO, closeOnDeinit: false)
+    public func write(data: [UInt8]) throws {
+        var totalWriteSize = 0
+        while true {
+            if totalWriteSize == data.count {
+                break
+            }
+            let ret = data.withUnsafeBytes { dataPointer -> Int in
+                let p = dataPointer.baseAddress! + totalWriteSize
+                let size = data.count - totalWriteSize
+                return Darwin.write(fd, p, size)
+            }
+            if ret == -1 {
+                throw PosixError(code: errno)
+            }
+            totalWriteSize += ret
+        }
+    }
+
+    public static let stdin: FileDescriptor = .of(STDIN_FILENO)
+    public static let stdout: FileDescriptor = .of(STDOUT_FILENO)
+    public static let stderr: FileDescriptor = .of(STDERR_FILENO)
+
+    public static func of(_ fd: Int32) -> FileDescriptor {
+        return FileDescriptor(fd: fd, closeOnDeinit: false)
+    }
 
     public static func open(path: String, flag: OpenFlag,
                             mode: OpenMode = [.ru, .wu, .rg, .wg, .ro, .wo])
