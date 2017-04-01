@@ -9,7 +9,7 @@
 import Darwin
 import RuPosixError
 
-public class FileDescriptor : Equatable, Hashable {
+public class FileDescriptor {
     public init(fd: Int32, closeOnDeinit: Bool) {
         self.fd = fd
         self.closeOnDeinit = closeOnDeinit
@@ -99,9 +99,5 @@ public class FileDescriptor : Equatable, Hashable {
         }
         return FileDescriptor(fd: fd, closeOnDeinit: true)
     }
-}
-
-public func == (lhs: FileDescriptor, rhs: FileDescriptor) -> Bool {
-    return lhs.fd == rhs.fd
 }
 
